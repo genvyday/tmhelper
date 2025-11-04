@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"os"
 
 	"github.com/dop251/goja"
@@ -22,7 +23,7 @@ func NewJS() *JS {
 
 func (sf *JS) Run(jsCode string) {
 	sf.vm.Set("xe_run", sf.xe_run)                // func(args []string)
-	sf.vm.Set("xe_setTimieout", sf.xe_setTimeout) // func(second int)
+	sf.vm.Set("xe_setTimeout", sf.xe_setTimeout) // func(second int)
 	sf.vm.Set("xe_matchs", sf.xe_matchs)          // func (rule [][]string) map[string]any{"idx": idx, "str": str}
 	sf.vm.Set("xe_term", sf.xe_term)              // func()
 	sf.vm.Set("xe_exit", sf.xe_exit)              // func()
@@ -45,11 +46,8 @@ func (sf *JS) xe_run(value goja.FunctionCall) goja.Value {
 }
 
 func (sf *JS) xe_setTimeout(value goja.FunctionCall) goja.Value {
-	sec, ok := value.Argument(0).Export().(int)
-	if !ok {
-		sf.errorf("setTimeout args error: must number")
-	}
-
+	str := value.Argument(0).String()
+	sec,ok := strconv.Atoi(str)
 	sf.xe.SetTimeout(sec)
 	return sf.vm.ToValue(nil)
 }
