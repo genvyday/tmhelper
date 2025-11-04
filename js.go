@@ -47,8 +47,8 @@ func (sf *JS) xe_run(value goja.FunctionCall) goja.Value {
 
 func (sf *JS) xe_setTimeout(value goja.FunctionCall) goja.Value {
 	str := value.Argument(0).String()
-	sec,ok := strconv.Atoi(str)
-	if !ok {
+	sec,err := strconv.Atoi(str)
+	if err != nil {
 		sf.errorf("setTimeout error: must number")
 	}
 	sf.xe.SetTimeout(sec)
