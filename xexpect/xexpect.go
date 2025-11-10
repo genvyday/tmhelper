@@ -273,6 +273,18 @@ func (sf *XExpect) ValHex() string{
 func (sf *XExpect) ValRaw() string{
     return string(sf.vbf[0 : sf.vlen])
 }
+func formal(x string) string{
+    s,ret,sp:="","",""
+    reader := strings.NewReader(x)
+    for reader.Len()>0{
+        ns,_:= fmt.Fscanf(reader,"%s",&s);
+        if ns!=0 {
+            ret=ret+sp+s
+            sp=" "
+        }
+    }
+    return ret
+}
 func (sf *XExpect) ReadUtil(wstr string) string {
     sf.waitv=true
     sf.vlen=0
@@ -282,10 +294,7 @@ func (sf *XExpect) ReadUtil(wstr string) string {
 	    sf.streamFind(sf.term, sf.ptmx,[]byte(wstr))
 	}
     sf.waitv=false
-    x:=string(sf.vbf[0 : sf.vlen])
-    var ret string
-    fmt.Sscanf(x,"%s",&ret);
-    return ret
+    return formal(string(sf.vbf[0 : sf.vlen]))
 }
 func (sf *XExpect) Term() {
 	if sf.step < stepRun {
