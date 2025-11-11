@@ -1,4 +1,4 @@
-module xexpect
+module tmhelper
 
 go 1.18
 

@@ -4,51 +4,79 @@ import (
 	"fmt"
 	"strconv"
 	"os"
+	"encoding/base64"
 
 	"github.com/dop251/goja"
-	"xexpect/xexpect"
+	"tmhelper/tmhelper"
 )
 
 type JS struct {
 	vm *goja.Runtime
-	xe *xexpect.XExpect
+	xe *tmhelper.TMHelper
+	pwd string
 }
 
 func NewJS() *JS {
 	return &JS{
 		vm: goja.New(),
-		xe: xexpect.NewXExpect(),
+		xe: tmhelper.NewTMHelper(),
+		pwd: "",
 	}
 }
 
-func (sf *JS) Run(jsCode string) {
-	sf.vm.Set("xe_run", sf.xe_run)                // func(args []string)
-	sf.vm.Set("xe_setTimeout", sf.xe_setTimeout) // func(second int)
-	sf.vm.Set("xe_matchs", sf.xe_matchs)          // func (rule [][]string) map[string]any{"idx": idx, "str": str}
-	sf.vm.Set("xe_term", sf.xe_term)              // func()
-	sf.vm.Set("xe_termUtil", sf.xe_termUtil)      // func()
-	sf.vm.Set("xe_readUtil", sf.xe_readUtil)      // func()
-	sf.vm.Set("xe_valHex", sf.xe_valHex)          // func()
-	sf.vm.Set("xe_valRaw", sf.xe_valRaw)          // func()
-	sf.vm.Set("xe_exit", sf.xe_exit)              // func()
-	sf.vm.Set("xe_println", sf.xe_println)        // func(msg string)
+func (sf *JS) Run(jsCode string,pwd string) {
+    sf.pwd=pwd
+    sf.xe.AesKey([]byte(pwd))
+	sf.vm.Set("tmh_run", sf.tmh_run)                // func(args []string)
+	sf.vm.Set("tmh_setTimeout", sf.tmh_setTimeout) // func(second int)
+	sf.vm.Set("tmh_matchs", sf.tmh_matchs)          // func (rule [][]string) map[string]any{"idx": idx, "str": str}
+	sf.vm.Set("tmh_term", sf.tmh_term)              // func()
+	sf.vm.Set("tmh_termUtil", sf.tmh_termUtil)      // func()
+	sf.vm.Set("tmh_readUtil", sf.tmh_readUtil)      // func()
+	sf.vm.Set("tmh_valHex", sf.tmh_valHex)          // func()
+	sf.vm.Set("tmh_key", sf.tmh_key)          // func()
+	sf.vm.Set("tmh_dec", sf.tmh_dec)          // func()
+	sf.vm.Set("tmh_enc", sf.tmh_enc)          // func()
+	sf.vm.Set("tmh_valRaw", sf.tmh_valRaw)          // func()
+	sf.vm.Set("tmh_exit", sf.tmh_exit)              // func()
+	sf.vm.Set("tmh_println", sf.tmh_println)        // func(msg string)
 	_, err := sf.vm.RunString(jsCode)
 	if err != nil {
 		panic(err)
 	}
 }
-
+func (sf *JS) tmh_key(value goja.FunctionCall) goja.Value {
+    str := value.Argument(0).String()
+	sf.xe.AesKey([]byte(str))
+	return sf.vm.ToValue(nil)
+}
+func (sf *JS) tmh_dec(value goja.FunctionCall) goja.Value {
+    str := value.Argument(0)
+    if len(sf.pwd)==0{
+        return str
+    }
+    encData,_:=base64.RawURLEncoding.DecodeString(str.String())
+	plain:=string(sf.xe.Dec(encData))
+	return sf.vm.ToValue(plain)
+}
+func (sf *JS) tmh_enc(value goja.FunctionCall) goja.Value {
+    str := value.Argument(0)
+    if len(sf.pwd)==0{
+        return str
+    }
+	encData:=sf.xe.Enc([]byte(str.String()))
+	ret:=base64.RawURLEncoding.EncodeToString(encData)
+	return sf.vm.ToValue(ret)
+}
 // func(args []string)
-func (sf *JS) xe_run(value goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_run(value goja.FunctionCall) goja.Value {
 	args := sf.formatArgs(value.Argument(0))
-
 	fmt.Println(args)
-
 	sf.xe.Run(args)
 	return sf.vm.ToValue(nil)
 }
 
-func (sf *JS) xe_setTimeout(value goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_setTimeout(value goja.FunctionCall) goja.Value {
 	str := value.Argument(0).String()
 	sec,err := strconv.Atoi(str)
 	if err != nil {
@@ -59,42 +87,40 @@ func (sf *JS) xe_setTimeout(value goja.FunctionCall) goja.Value {
 }
 
 // func (rule [][]string) map[string]any{"idx": idx, "str": str}
-func (sf *JS) xe_matchs(value goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_matchs(value goja.FunctionCall) goja.Value {
 	rule := sf.formatRule(value.Argument(0))
-
 	idx, str := sf.xe.Matchs(rule)
-
 	return sf.vm.ToValue(map[string]any{"idx": idx, "str": str})
 }
 
-func (sf *JS) xe_term(_ goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_term(_ goja.FunctionCall) goja.Value {
 	sf.xe.Term()
 	return sf.vm.ToValue(nil)
 }
-func (sf *JS) xe_termUtil(call goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_termUtil(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
 	sf.xe.TermUtil(str.String())
 	return str
 }
-func (sf *JS) xe_valRaw(call goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_valRaw(call goja.FunctionCall) goja.Value {
     ret :=sf.xe.ValRaw()
     return sf.vm.ToValue(ret)
 }
-func (sf *JS) xe_valHex(call goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_valHex(call goja.FunctionCall) goja.Value {
     ret :=sf.xe.ValHex()
     return sf.vm.ToValue(ret)
 }
-func (sf *JS) xe_readUtil(call goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_readUtil(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
 	ret :=sf.xe.ReadUtil(str.String())
 	return sf.vm.ToValue(ret)
 }
-func (sf *JS) xe_exit(_ goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_exit(_ goja.FunctionCall) goja.Value {
 	sf.xe.Exit()
 	return sf.vm.ToValue(nil)
 }
 
-func (sf *JS) xe_println(call goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_println(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
 	fmt.Println(str.String())
 	return str

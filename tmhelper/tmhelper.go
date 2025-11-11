@@ -1,4 +1,4 @@
-package xexpect
+package tmhelper
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ const (
 	matchLen = 32
 )
 
-type XExpect struct {
+type TMHelper struct {
 	ptmx    *pty.Pty
 	term    *term.Term
 	timeout int // 总超时时间，秒
@@ -38,6 +38,7 @@ type XExpect struct {
 	vbf      []byte
 	vlen     int
 	waitv    bool
+	key      []byte
 }
 
 type action struct {
@@ -47,8 +48,8 @@ type action struct {
 	isReg      bool // 是否为正则
 }
 
-func NewXExpect() *XExpect {
-	return &XExpect{
+func NewTMHelper() *TMHelper {
+	return &TMHelper{
 		ptmx:     nil,
 		term:     nil,
 		timeout:  10,
@@ -63,7 +64,7 @@ func NewXExpect() *XExpect {
 	}
 }
 
-func (sf *XExpect) SetTimeout(second int) {
+func (sf *TMHelper) SetTimeout(second int) {
 	if sf.step != stepNew {
 		sf.errorf("SetTimeout() must be called before Run()")
 	}
@@ -75,7 +76,7 @@ func (sf *XExpect) SetTimeout(second int) {
 	sf.timeout = second
 }
 
-func (sf *XExpect) Run(args []string) {
+func (sf *TMHelper) Run(args []string) {
 	if sf.step != stepNew {
 		sf.errorf("Run() can be called only once")
 	}
@@ -123,7 +124,18 @@ func (sf *XExpect) Run(args []string) {
 		sf.errorf("timeout exit")
 	})
 }
-func (sf *XExpect) saveVar(cutLen int,mlen int){
+func (sf *TMHelper) AesKey(key []byte){
+    if len(key) !=0{
+        sf.key=GenKey(key,32)
+    }
+}
+func (sf *TMHelper) Enc(plain []byte)([] byte){
+    return AesEnc(plain,sf.key)
+}
+func (sf *TMHelper) Dec(enc []byte)([] byte){
+    return AesDec(enc,sf.key)
+}
+func (sf *TMHelper) saveVar(cutLen int,mlen int){
     if !sf.waitv {
         return
     }
@@ -135,7 +147,7 @@ func (sf *XExpect) saveVar(cutLen int,mlen int){
     copy(sf.vbf[sf.vlen:],sf.buf[:vx])
     sf.vlen+=vx
 }
-func (sf *XExpect) cutBuf(dataLen int,cutLen int,mlen int){
+func (sf *TMHelper) cutBuf(dataLen int,cutLen int,mlen int){
     if cutLen<0{
         return
     }
@@ -143,7 +155,7 @@ func (sf *XExpect) cutBuf(dataLen int,cutLen int,mlen int){
     copy(sf.buf, sf.buf[cutLen:])
     sf.start = dataLen-cutLen
 }
-func (sf *XExpect) streamFind(dst io.Writer, src io.Reader,matchb[]byte) (written int64, err error) {
+func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,matchb[]byte) (written int64, err error) {
     mlen:=len(matchb)
 	for {
 		nr, er := src.Read(sf.buf[sf.start:])
@@ -181,7 +193,7 @@ func (sf *XExpect) streamFind(dst io.Writer, src io.Reader,matchb[]byte) (writte
 	}
     return written, err
 }
-func (sf *XExpect) Matchs(rule [][]string) (int, string) {
+func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 	if sf.step < stepRun {
 		sf.errorf("Matchs() must be called after Run()")
 	}
@@ -260,17 +272,17 @@ func (sf *XExpect) Matchs(rule [][]string) (int, string) {
 
 	return -1, ""
 }
-func (sf *XExpect) TermUtil(wstr string) {
+func (sf *TMHelper) TermUtil(wstr string) {
 	if sf.term == nil {
 		sf.streamFind(os.Stdout, sf.ptmx,[]byte(wstr))
 	} else {
 	    sf.streamFind(sf.term, sf.ptmx,[]byte(wstr))
 	}
 }
-func (sf *XExpect) ValHex() string{
+func (sf *TMHelper) ValHex() string{
     return hex.EncodeToString(sf.vbf[0 : sf.vlen])
 }
-func (sf *XExpect) ValRaw() string{
+func (sf *TMHelper) ValRaw() string{
     return string(sf.vbf[0 : sf.vlen])
 }
 func formal(x string) string{
@@ -285,7 +297,7 @@ func formal(x string) string{
     }
     return ret
 }
-func (sf *XExpect) ReadUtil(wstr string) string {
+func (sf *TMHelper) ReadUtil(wstr string) string {
     sf.waitv=true
     sf.vlen=0
 	if sf.term == nil {
@@ -296,7 +308,7 @@ func (sf *XExpect) ReadUtil(wstr string) string {
     sf.waitv=false
     return formal(string(sf.vbf[0 : sf.vlen]))
 }
-func (sf *XExpect) Term() {
+func (sf *TMHelper) Term() {
 	if sf.step < stepRun {
 		sf.errorf("Matchs() must be called after Run()")
 	}
@@ -316,7 +328,7 @@ func (sf *XExpect) Term() {
 	}
 }
 
-func (sf *XExpect) Exit() {
+func (sf *TMHelper) Exit() {
 	if sf.step == stepExit {
 		sf.errorf("Exit() does not allow repeated calls")
 	}
@@ -325,7 +337,7 @@ func (sf *XExpect) Exit() {
 	sf.close()
 }
 
-func (sf *XExpect) close() {
+func (sf *TMHelper) close() {
 	if sf.term != nil {
 		sf.term.Close()
 	}
@@ -334,7 +346,7 @@ func (sf *XExpect) close() {
 	}
 }
 
-func (sf *XExpect) regMatch(text string, reg string) string {
+func (sf *TMHelper) regMatch(text string, reg string) string {
 	regex, err := regexp.Compile(reg)
 	if err != nil {
 		sf.errorf("reg (%s) error: %v", reg, err)
@@ -343,7 +355,7 @@ func (sf *XExpect) regMatch(text string, reg string) string {
 	return regex.FindString(text)
 }
 
-func (sf *XExpect) parseRule(rule [][]string) []*action {
+func (sf *TMHelper) parseRule(rule [][]string) []*action {
 	out := make([]*action, 0, len(rule))
 
 	numC := 0
@@ -378,7 +390,7 @@ func (sf *XExpect) parseRule(rule [][]string) []*action {
 	return out
 }
 
-func (sf *XExpect) onSizeChange(p *pty.Pty) func(uint16, uint16) {
+func (sf *TMHelper) onSizeChange(p *pty.Pty) func(uint16, uint16) {
 	return func(cols, rows uint16) {
 		size := &pty.WinSize{
 			Cols: cols,
@@ -388,7 +400,7 @@ func (sf *XExpect) onSizeChange(p *pty.Pty) func(uint16, uint16) {
 	}
 }
 
-func (sf *XExpect) errorf(format string, vals ...any) {
+func (sf *TMHelper) errorf(format string, vals ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", vals...)
 	sf.close()
 	os.Exit(1)
