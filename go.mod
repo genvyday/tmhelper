@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2
 	github.com/iyzyi/aiopty v0.1.0
-	github.com/zh-five/xtool v0.2.1
 )
 
 require (
