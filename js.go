@@ -25,10 +25,7 @@ func NewJS() *JS {
 	}
 }
 
-func (sf *JS) Run(jsCode string,pwd string) {
-    if len(pwd) !=0{
-        sf.putKey(pwd)
-    }
+func (sf *JS) Run(jsCode string) {
 	sf.vm.Set("tmh_run", sf.tmh_run)                // func(args []string)
 	sf.vm.Set("tmh_setTimeout", sf.tmh_setTimeout) // func(second int)
 	sf.vm.Set("tmh_matchs", sf.tmh_matchs)          // func (rule [][]string) map[string]any{"idx": idx, "str": str}

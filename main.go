@@ -11,20 +11,14 @@ import (
 const CPTENV ="TMHCPTKEY"
 func main() {
 	jsPath := flag.String("f", "", "file, 运行tmhelper js文件")
-	jxPath := flag.String("x", "", "file, 运行tmhelper js文件")
 	jsCode := flag.String("c", "", "code, 运行tmhelper js代码")
 	encText := flag.String("e", "", "encrypt,加密文本")
 	decText := flag.String("d", "", "decrypt,解密文本")
 	flag.Parse()
-    pwd:=os.Getenv(CPTENV)
 	code := []byte{}
 	if *jsPath != "" {
 		code = readFromFile(*jsPath)
-	} else if *jxPath != "" {
-     	code = readFromFile(*jxPath)
-     	fmt.Print("Please enter password decrypt key: ")
-     	pwd=tmhelper.ReadStr(os.Stdin)
-    } else if *jsCode != "" {
+	} else if *jsCode != "" {
 		code = []byte(*jsCode)
 	} else if *encText != "" {
 		encryptText(*encText)
@@ -36,7 +30,7 @@ func main() {
 		code = readFromStdin()
 	}
 	js := NewJS()
-	js.Run(string(code),pwd)
+	js.Run(string(code))
 }
 
 func readFileCode(jsPath string) (b []byte) {
