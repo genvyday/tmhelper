@@ -6,6 +6,7 @@ import (
 	"os"
 	"encoding/base64"
 
+	"golang.org/x/term"
 	"github.com/dop251/goja"
 	"tmhelper/tmhelper"
 )
@@ -35,11 +36,12 @@ func (sf *JS) Run(jsCode string,pwd string) {
 	sf.vm.Set("tmh_expect", sf.tmh_expect)      // func()
 	sf.vm.Set("tmh_readStr", sf.tmh_readStr)      // func()
 	sf.vm.Set("tmh_valHex", sf.tmh_valHex)          // func()
-	sf.vm.Set("tmh_key", sf.tmh_key)          // func()
+	sf.vm.Set("tmh_crypto", sf.tmh_crypto)          // func()
 	sf.vm.Set("tmh_dec", sf.tmh_dec)          // func()
 	sf.vm.Set("tmh_enc", sf.tmh_enc)          // func()
 	sf.vm.Set("tmh_ok", sf.tmh_ok)          // func()
 	sf.vm.Set("tmh_input", sf.tmh_input)          // func()
+	sf.vm.Set("tmh_pwd", sf.tmh_pwd)          // func()
 	sf.vm.Set("tmh_valRaw", sf.tmh_valRaw)          // func()
 	sf.vm.Set("tmh_exit", sf.tmh_exit)              // func()
 	sf.vm.Set("tmh_println", sf.tmh_println)        // func(msg string)
@@ -53,7 +55,7 @@ func (sf *JS) putKey(key string){
     sf.pwd=key
 	sf.xe.AesKey([]byte(key))
 }
-func (sf *JS) tmh_key(value goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_crypto(value goja.FunctionCall) goja.Value {
     sf.putKey(value.Argument(0).String())
 	return sf.vm.ToValue(nil)
 }
@@ -128,6 +130,12 @@ func (sf *JS) tmh_readStr(call goja.FunctionCall) goja.Value {
 func (sf *JS) tmh_exit(_ goja.FunctionCall) goja.Value {
 	sf.xe.Exit()
 	return sf.vm.ToValue(nil)
+}
+func (sf *JS) tmh_pwd(call goja.FunctionCall) goja.Value {
+	str := call.Argument(0)
+	fmt.Print(str.String())
+	bpwd,_ := term.ReadPassword(int(os.Stdin.Fd()))
+	return sf.vm.ToValue(string(bpwd))
 }
 func (sf *JS) tmh_input(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)

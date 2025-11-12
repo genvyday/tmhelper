@@ -8,7 +8,7 @@ import (
 	"encoding/base64"
 	"tmhelper/tmhelper"
 )
-const PWDENV ="TMHPWD"
+const CPTENV ="TMHCPTKEY"
 func main() {
 	jsPath := flag.String("f", "", "file, 运行tmhelper js文件")
 	jxPath := flag.String("x", "", "file, 运行tmhelper js文件")
@@ -16,7 +16,7 @@ func main() {
 	encText := flag.String("e", "", "encrypt,加密文本")
 	decText := flag.String("d", "", "decrypt,解密文本")
 	flag.Parse()
-    pwd:=os.Getenv(PWDENV)
+    pwd:=os.Getenv(CPTENV)
 	code := []byte{}
 	if *jsPath != "" {
 		code = readFromFile(*jsPath)
@@ -54,14 +54,14 @@ func readFromFile(jsPath string) []byte {
 }
 
 func encryptText(plain string) {
-    pwd:=os.Getenv(PWDENV)
+    pwd:=os.Getenv(CPTENV)
     key:=tmhelper.GenKeyX(pwd,32)
     encd:=tmhelper.AesEnc([]byte(plain),key)
     encText:=base64.RawURLEncoding.EncodeToString(encd);
     fmt.Println(encText)
 }
 func decryptText(encstr string) {
-    pwd:=os.Getenv(PWDENV)
+    pwd:=os.Getenv(CPTENV)
     key:=tmhelper.GenKeyX(pwd,32)
     encData,_:=base64.RawURLEncoding.DecodeString(encstr)
     plain:=string(tmhelper.AesDec(encData,key))

@@ -1,10 +1,10 @@
-# tmhelper：跨平台 expect 命令和 go 库
+# tmhelper：跨平台类 expect 命令
 
 tmhelper 命令:
 - 支持 linux 和 windows (cmd，powershell，git bash...)
 - 支持交互式和非交互式脚本环境
 - 内嵌 javascript 引擎(完整支持 ECMAScript 5.1)
-- 支持js脚本加密，增加密码安全性
+- 支持加解密文本，增加安全性
 
 go 库文档：[tmhelper 库]
 
@@ -37,20 +37,21 @@ tmhelper -f ssh.js
 tmhelper < ssh.js
 
 # 3.在参数里写js代码
-tmhelper -c 'xe_run(["ssh", "xr@127.0.0.1"]);xe_matchs([["yes/no", "yes\n", "C"],["password", "123456\n"]]);xe_matchs([["$", "cd /data/git/\n"]]);xe_term();'
+tmhelper -c 'tmh_run(["ssh", "xr@127.0.0.1"]);tmh_matchs([["yes/no", "yes\n", "C"],["password", "123456\n"]]);tmh_matchs([["$", "cd /data/git/\n"]]);tmh_term();'
 
 # 4.shell中编写js代码，然后导入到tmhelper命令的标准输入
 tmhelper <<EOF
-xe_run(["ssh", "xr@127.0.0.1"]); // 运行命令
+tmh_crypto(tmh_pwd("crypto key");
+tmh_run(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回
-xe_matchs([
+tmh_matchs([
     ["yes/no", "yes\n", "C"],       // "C"(continue)标志表示命中后不退出，继续匹配
-    ["password", "123456\n"],
+    ["password", tmh_dec("encrypted_base64_password")+"\n"],
 ]);
-xe_matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
+tmh_matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
 
-xe_term(); // 停留在交互式终端，若要结束则调用 xe_exit()
+tmh_term(); // 停留在交互式终端，若要结束则调用 tmh_exit()
 EOF
 
 ```
@@ -58,22 +59,22 @@ EOF
 ```js
 // 自动登录ssh，并停留在交互式shell
 
-xe_run(["ssh", "xr@127.0.0.1"]); // 运行命令
+tmh_run(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回
-xe_matchs([
+tmh_matchs([
     ["yes/no", "yes\n", "C"],       // "C"(continue)标志表示命中后不退出，继续匹配
     ["password", "123456\n"],
 ]);
-xe_matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
+tmh_matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
 
-xe_term(); // 停留在交互式终端，若要结束则调用 xe_exit()
+tmh_term(); // 停留在交互式终端，若要结束则调用 tmh_exit()
 ```
 
 ### 3.加密文本
 ```shell
 # 加密密码, 
-export TMHPWD=12345
+export TMHCPTKEY=12345
 tmhelper -e login.password
 # output: encrypt base64 text
 ```
@@ -82,8 +83,8 @@ tmhelper -e login.password
 ### 4.解密文本
 ```shell
 # 加密密码, 
-export TMHPWD=12345
-tmhelper -d encrypt.password
+export TMHCPTKEY=12345
+tmhelper -d encrypted.password
 # output: plain text
 ```
 # 安装
