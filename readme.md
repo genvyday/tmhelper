@@ -73,16 +73,17 @@ tmh_term(); // 停留在交互式终端，若要结束则调用 tmh_exit()
 
 ### 3.加密文本
 ```shell
-# 加密密码, 
+# 加密登录密码
 export TMHCPTKEY=12345
 tmhelper -e login.password
-# output: encrypt base64 text
+# output: encrypted base64 text
+# in js tmh_dec(output.encrypted) to decrypt
 ```
 
 
 ### 4.解密文本
 ```shell
-# 加密密码, 
+# 解密
 export TMHCPTKEY=12345
 tmhelper -d encrypted.password
 # output: plain text
