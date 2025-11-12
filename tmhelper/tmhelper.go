@@ -40,6 +40,7 @@ type TMHelper struct {
 	vlen     int
 	key      []byte
 	err      error
+	timer    *time.Timer
 }
 
 type action struct {
@@ -62,6 +63,7 @@ func NewTMHelper() *TMHelper {
 		vbf:      make([]byte,1024),
 		vlen:     0,
 		err:      nil,
+		timer:    nil,
 	}
 }
 
@@ -119,7 +121,7 @@ func (sf *TMHelper) Run(args []string) {
 		}()
 	}
 	// timeout
-	time.AfterFunc(time.Second*time.Duration(sf.timeout), func() {
+	sf.timer=time.AfterFunc(time.Second*time.Duration(sf.timeout), func() {
 		if sf.step > stepExpect {
 			return
 		}
@@ -168,9 +170,6 @@ func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,str string,readVal b
 	for {
 		nr, er := src.Read(sf.buf[sf.start:])
 		sf.err=er
-        if err != nil {
-            sf.errorf("read error: %v", err)
-        }
 		if nr > 0 {
 			nw, ew := dst.Write(sf.buf[sf.start : sf.start+nr])
 			if nw < 0 || nr < nw {
@@ -188,6 +187,13 @@ func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,str string,readVal b
 				err = io.ErrShortWrite
 				break
 			}
+            idx := bytes.Index(sf.buf[:sf.start + nr],matchb)
+            if idx>-1 {
+                sf.cutBuf(sf.start + nr,idx+mlen, mlen,readVal)
+                return written, err
+            }else{
+                sf.cutBuf(sf.start + nr,sf.start+nr-mlen+1,0,readVal)
+            }
 		}
 		if er != nil {
 			if er != io.EOF {
@@ -195,13 +201,6 @@ func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,str string,readVal b
 			}
 			break
 		}
-        idx := bytes.Index(sf.buf[:sf.start + nr],matchb)
-        if idx>-1 {
-            sf.cutBuf(sf.start + nr,idx+mlen, mlen,readVal)
-            return written, err
-        }else{
-            sf.cutBuf(sf.start + nr,sf.start+nr-mlen+1,0,readVal)
-        }
 	}
     return written, err
 }
@@ -225,6 +224,7 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 		sf.err=err
 		if err != nil {
 		    sf.errorf("read error: %v", err)
+		    return -1,""
 		}
 		fmt.Print(string(sf.buf[sf.start : sf.start+n])) // 显示pty输出
 		if n > 0 {
@@ -266,6 +266,7 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 						sf.err=err
 						if err != nil {
 							sf.errorf("send error: %v", err)
+							return -1,""
 						}
 					}
 					if act.isContinue {
@@ -320,6 +321,9 @@ func (sf *TMHelper) ReadStr(wstr string) string {
 	}
     return formal(string(sf.vbf[0 : sf.vlen]))
 }
+func (sf *TMHelper) Ok() bool{
+    return sf.step != stepExit&&sf.err==nil;
+}
 func (sf *TMHelper) Error() error{
     return sf.err
 }
@@ -353,10 +357,16 @@ func (sf *TMHelper) Exit() {
 func (sf *TMHelper) close() {
 	if sf.term != nil {
 		sf.term.Close()
+		sf.term=nil
 	}
 	if sf.ptmx != nil {
 		sf.ptmx.Close()
+		sf.ptmx=nil
 	}
+    if sf.timer != nil{
+        sf.timer.Stop()
+        sf.timer=nil
+    }
 }
 
 func (sf *TMHelper) regMatch(text string, reg string) string {
@@ -415,6 +425,4 @@ func (sf *TMHelper) onSizeChange(p *pty.Pty) func(uint16, uint16) {
 
 func (sf *TMHelper) errorf(format string, vals ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", vals...)
-	sf.close()
-	os.Exit(1)
 }

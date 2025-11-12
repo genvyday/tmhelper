@@ -63,7 +63,7 @@ func (sf *JS) tmh_cptKey(value goja.FunctionCall) goja.Value {
 	return sf.vm.ToValue(valid)
 }
 func (sf *JS) tmh_ok(value goja.FunctionCall) goja.Value {
-	return sf.vm.ToValue(sf.xe.Error()==nil)
+	return sf.vm.ToValue(sf.xe.Ok())
 }
 func (sf *JS) tmh_dec(value goja.FunctionCall) goja.Value {
     str := value.Argument(0)
@@ -213,5 +213,4 @@ func (sf *JS) errorf(format string, vals ...any) {
 	if sf.xe != nil {
 		sf.xe.Exit()
 	}
-	os.Exit(1)
 }
