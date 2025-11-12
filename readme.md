@@ -41,7 +41,7 @@ tmhelper -c 'tmh_run(["ssh", "xr@127.0.0.1"]);tmh_matchs([["yes/no", "yes\n", "C
 
 # 4.shell中编写js代码，然后导入到tmhelper命令的标准输入
 tmhelper <<EOF
-tmh_crypto(tmh_pwd("crypto key");
+tmh_cptKey(tmh_pwd("crypto key"),"encrypted_123_for_check");
 tmh_run(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回

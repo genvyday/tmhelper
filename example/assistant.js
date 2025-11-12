@@ -1,5 +1,6 @@
-//tmh_crypto(tmh_pwd("crypto key:"));
-tmh_crypto("12345")
+//while(!tmh_cptKey(tmh_pwd("crypto key:"),"encrypted_123_for_check"))
+//  tmh_println("crypto key not match");
+tmh_cptKey("12345","GY2dDlxuHET_U0NqwpZyzQ");
 const creds=new Map([ //credentials
   ["devdrt",{user:"devuser",pwd:"ejXJ3n82nxpKp6IVYd-f4Q"}],
   ["uatbst",{user:"uatbst",pwd:"ejXJ3n82nxpKp6IVYd-f4Q"}],

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"encoding/base64"
+
 	"tmhelper/tmhelper"
 )
 const CPTENV ="TMHCPTKEY"
@@ -54,18 +54,10 @@ func readFromFile(jsPath string) []byte {
 }
 
 func encryptText(plain string) {
-    pwd:=os.Getenv(CPTENV)
-    key:=tmhelper.GenKeyX(pwd,32)
-    encd:=tmhelper.AesEnc([]byte(plain),key)
-    encText:=base64.RawURLEncoding.EncodeToString(encd);
-    fmt.Println(encText)
+    fmt.Println(tmhelper.EncText(plain,os.Getenv(CPTENV)))
 }
 func decryptText(encstr string) {
-    pwd:=os.Getenv(CPTENV)
-    key:=tmhelper.GenKeyX(pwd,32)
-    encData,_:=base64.RawURLEncoding.DecodeString(encstr)
-    plain:=string(tmhelper.AesDec(encData,key))
-    fmt.Println(plain)
+    fmt.Println(tmhelper.DecText(encstr,os.Getenv(CPTENV)))
 }
 
 func readFromStdin() []byte {

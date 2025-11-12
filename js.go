@@ -36,7 +36,7 @@ func (sf *JS) Run(jsCode string,pwd string) {
 	sf.vm.Set("tmh_expect", sf.tmh_expect)      // func()
 	sf.vm.Set("tmh_readStr", sf.tmh_readStr)      // func()
 	sf.vm.Set("tmh_valHex", sf.tmh_valHex)          // func()
-	sf.vm.Set("tmh_crypto", sf.tmh_crypto)          // func()
+	sf.vm.Set("tmh_cptKey", sf.tmh_cptKey)          // func()
 	sf.vm.Set("tmh_dec", sf.tmh_dec)          // func()
 	sf.vm.Set("tmh_enc", sf.tmh_enc)          // func()
 	sf.vm.Set("tmh_ok", sf.tmh_ok)          // func()
@@ -55,9 +55,15 @@ func (sf *JS) putKey(key string){
     sf.pwd=key
 	sf.xe.AesKey([]byte(key))
 }
-func (sf *JS) tmh_crypto(value goja.FunctionCall) goja.Value {
-    sf.putKey(value.Argument(0).String())
-	return sf.vm.ToValue(nil)
+func (sf *JS) tmh_cptKey(value goja.FunctionCall) goja.Value {
+    ekey:=value.Argument(0).String()
+    chk:=value.Argument(1).String()
+    enc:=tmhelper.EncText("123",ekey)
+    valid:=enc==chk;
+    if(valid){
+        sf.putKey(ekey)
+    }
+	return sf.vm.ToValue(valid)
 }
 func (sf *JS) tmh_ok(value goja.FunctionCall) goja.Value {
 	return sf.vm.ToValue(sf.xe.Error()==nil)
@@ -71,6 +77,7 @@ func (sf *JS) tmh_dec(value goja.FunctionCall) goja.Value {
 	plain:=string(sf.xe.Dec(encData))
 	return sf.vm.ToValue(plain)
 }
+
 func (sf *JS) tmh_enc(value goja.FunctionCall) goja.Value {
     str := value.Argument(0)
     if len(sf.pwd)==0{

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 
 	"golang.org/x/crypto/pbkdf2"
+	"encoding/base64"
 )
 
 var _salt = []byte{37, 112, 39, 97, 86, 35, 118, 22, 43, 78, 111, 123, 17, 48, 19, 29}
@@ -47,4 +48,16 @@ func AesDec(encrypted []byte, key []byte) (decrypted []byte) {
 	}
 
 	return decrypted[:trim]
+}
+func EncText(plain string,pwd string) string {
+    key:=GenKeyX(pwd,32)
+    encd:=AesEnc([]byte(plain),key)
+    encText:=base64.RawURLEncoding.EncodeToString(encd);
+    return encText;
+}
+func DecText(encstr string,pwd string) string {
+    key:=GenKeyX(pwd,32)
+    encData,_:=base64.RawURLEncoding.DecodeString(encstr)
+    plain:=string(AesDec(encData,key))
+    return plain
 }
