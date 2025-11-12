@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"bufio"
-	"strings"
 	"encoding/base64"
 	"tmhelper/tmhelper"
 )
@@ -25,9 +23,7 @@ func main() {
 	} else if *jxPath != "" {
      	code = readFromFile(*jxPath)
      	fmt.Print("Please enter password decrypt key: ")
-     	inputReader := bufio.NewReader(os.Stdin)
-     	pwd, _ = inputReader.ReadString('\n')
-     	pwd=strings.Trim(pwd," \t\n\r")
+     	pwd=tmhelper.ReadStr(os.Stdin)
     } else if *jsCode != "" {
 		code = []byte(*jsCode)
 	} else if *encText != "" {

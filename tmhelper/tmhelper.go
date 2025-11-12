@@ -3,6 +3,7 @@ package tmhelper
 import (
 	"fmt"
 	"io"
+	"bufio"
 	"os"
 	"regexp"
 	"strings"
@@ -37,8 +38,8 @@ type TMHelper struct {
 	sbf      []byte
 	vbf      []byte
 	vlen     int
-	waitv    bool
 	key      []byte
+	err      error
 }
 
 type action struct {
@@ -60,7 +61,7 @@ func NewTMHelper() *TMHelper {
 		sbf:      make([]byte, 1024),
 		vbf:      make([]byte,1024),
 		vlen:     0,
-		waitv:    false,
+		err:      nil,
 	}
 }
 
@@ -77,9 +78,9 @@ func (sf *TMHelper) SetTimeout(second int) {
 }
 
 func (sf *TMHelper) Run(args []string) {
-	if sf.step != stepNew {
-		sf.errorf("Run() can be called only once")
-	}
+    sf.err = nil
+    sf.start=0
+	sf.vlen=  0
 	sf.step = stepRun
 
 	opt := &pty.Options{
@@ -108,11 +109,13 @@ func (sf *TMHelper) Run(args []string) {
 	// 响应手动输入
 	if sf.term == nil {
 		go func() {
-		    io.CopyBuffer(sf.ptmx, os.Stdin,sf.sbf)
+		    _,err=io.CopyBuffer(sf.ptmx, os.Stdin,sf.sbf)
+		    sf.err=err
 		}()
 	} else {
 		go func() {
-		    io.CopyBuffer(sf.ptmx, sf.term,sf.sbf)
+		    _,err=io.CopyBuffer(sf.ptmx, sf.term,sf.sbf)
+		    sf.err=err
 		}()
 	}
 	// timeout
@@ -135,10 +138,7 @@ func (sf *TMHelper) Enc(plain []byte)([] byte){
 func (sf *TMHelper) Dec(enc []byte)([] byte){
     return AesDec(enc,sf.key)
 }
-func (sf *TMHelper) saveVar(cutLen int,mlen int){
-    if !sf.waitv {
-        return
-    }
+func (sf *TMHelper) saveVal(cutLen int,mlen int){
     vx:=cutLen-mlen;
     vl:=len(sf.vbf)-sf.vlen;
     if vx>vl{
@@ -147,18 +147,30 @@ func (sf *TMHelper) saveVar(cutLen int,mlen int){
     copy(sf.vbf[sf.vlen:],sf.buf[:vx])
     sf.vlen+=vx
 }
-func (sf *TMHelper) cutBuf(dataLen int,cutLen int,mlen int){
+func (sf *TMHelper) cutBuf(dataLen int,cutLen int,mlen int,readVal bool){
     if cutLen<0{
         return
     }
-    sf.saveVar(cutLen,mlen)
+    if readVal{
+        sf.saveVal(cutLen,mlen)
+    }
     copy(sf.buf, sf.buf[cutLen:])
     sf.start = dataLen-cutLen
 }
-func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,matchb[]byte) (written int64, err error) {
+func ReadStr(in io.Reader)string{
+    inputReader := bufio.NewReader(in)
+    str, _ := inputReader.ReadString('\n')
+    return strings.Trim(str," \t\n\r")
+}
+func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,str string,readVal bool) (written int64, err error) {
+    matchb:=[]byte(str)
     mlen:=len(matchb)
 	for {
 		nr, er := src.Read(sf.buf[sf.start:])
+		sf.err=er
+        if err != nil {
+            sf.errorf("read error: %v", err)
+        }
 		if nr > 0 {
 			nw, ew := dst.Write(sf.buf[sf.start : sf.start+nr])
 			if nw < 0 || nr < nw {
@@ -183,12 +195,12 @@ func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,matchb[]byte) (writt
 			}
 			break
 		}
-        idx := bytes.Index(sf.buf,matchb)
+        idx := bytes.Index(sf.buf[:sf.start + nr],matchb)
         if idx>-1 {
-            sf.cutBuf(sf.start + nr,idx+mlen, mlen)
+            sf.cutBuf(sf.start + nr,idx+mlen, mlen,readVal)
             return written, err
         }else{
-            sf.cutBuf(sf.start + nr,sf.start+nr-mlen+1,0)
+            sf.cutBuf(sf.start + nr,sf.start+nr-mlen+1,0,readVal)
         }
 	}
     return written, err
@@ -210,8 +222,9 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 
 	for {
 		n, err := sf.ptmx.Read(sf.buf[sf.start:])
+		sf.err=err
 		if err != nil {
-			break
+		    sf.errorf("read error: %v", err)
 		}
 		fmt.Print(string(sf.buf[sf.start : sf.start+n])) // 显示pty输出
 		if n > 0 {
@@ -250,6 +263,7 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 					if len(act.send) > 0 {
 						//fmt.Println(act.send, "end")
 						_, err := sf.ptmx.Write([]byte(act.send))
+						sf.err=err
 						if err != nil {
 							sf.errorf("send error: %v", err)
 						}
@@ -272,11 +286,11 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 
 	return -1, ""
 }
-func (sf *TMHelper) TermUtil(wstr string) {
+func (sf *TMHelper) Expect(wstr string) {
 	if sf.term == nil {
-		sf.streamFind(os.Stdout, sf.ptmx,[]byte(wstr))
+		sf.streamFind(os.Stdout, sf.ptmx,wstr,false)
 	} else {
-	    sf.streamFind(sf.term, sf.ptmx,[]byte(wstr))
+	    sf.streamFind(sf.term, sf.ptmx,wstr,false)
 	}
 }
 func (sf *TMHelper) ValHex() string{
@@ -297,16 +311,17 @@ func formal(x string) string{
     }
     return ret
 }
-func (sf *TMHelper) ReadUtil(wstr string) string {
-    sf.waitv=true
+func (sf *TMHelper) ReadStr(wstr string) string {
     sf.vlen=0
 	if sf.term == nil {
-		sf.streamFind(os.Stdout, sf.ptmx,[]byte(wstr))
+		sf.streamFind(os.Stdout, sf.ptmx,wstr,true)
 	} else {
-	    sf.streamFind(sf.term, sf.ptmx,[]byte(wstr))
+	    sf.streamFind(sf.term, sf.ptmx,wstr,true)
 	}
-    sf.waitv=false
     return formal(string(sf.vbf[0 : sf.vlen]))
+}
+func (sf *TMHelper) Error() error{
+    return sf.err
 }
 func (sf *TMHelper) Term() {
 	if sf.step < stepRun {
@@ -329,12 +344,10 @@ func (sf *TMHelper) Term() {
 }
 
 func (sf *TMHelper) Exit() {
-	if sf.step == stepExit {
-		sf.errorf("Exit() does not allow repeated calls")
+	if sf.step != stepExit {
+	    sf.close()
 	}
 	sf.step = stepExit
-
-	sf.close()
 }
 
 func (sf *TMHelper) close() {
