@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"os"
+	"runtime"
 	"encoding/base64"
 
 	"golang.org/x/term"
@@ -44,6 +45,7 @@ func (sf *JS) Run(jsCode string) {
 	sf.vm.Set("tmh_println", sf.tmh_println)        // func(msg string)
 	sf.vm.Set("tmh_print", sf.tmh_print)        // func(msg string)
 	sf.vm.Set("tmh_waitDone", sf.tmh_waitDone)        // func(msg string)
+	sf.vm.Set("tmh_goos",sf.tmh_goos)
 	_, err := sf.vm.RunString(jsCode)
 	if err != nil {
 		panic(err)
@@ -75,7 +77,9 @@ func (sf *JS) tmh_dec(value goja.FunctionCall) goja.Value {
 	plain:=string(sf.xe.Dec(encData))
 	return sf.vm.ToValue(plain)
 }
-
+func (sf *JS) tmh_goos(value goja.FunctionCall) goja.Value {
+    return sf.vm.ToValue(runtime.GOOS)
+}
 func (sf *JS) tmh_enc(value goja.FunctionCall) goja.Value {
     str := value.Argument(0)
     if len(sf.pwd)==0{
