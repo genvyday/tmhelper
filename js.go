@@ -43,6 +43,7 @@ func (sf *JS) Run(jsCode string) {
 	sf.vm.Set("tmh_exit", sf.tmh_exit)              // func()
 	sf.vm.Set("tmh_println", sf.tmh_println)        // func(msg string)
 	sf.vm.Set("tmh_print", sf.tmh_print)        // func(msg string)
+	sf.vm.Set("tmh_waitDone", sf.tmh_waitDone)        // func(msg string)
 	_, err := sf.vm.RunString(jsCode)
 	if err != nil {
 		panic(err)
@@ -131,7 +132,16 @@ func (sf *JS) tmh_readStr(call goja.FunctionCall) goja.Value {
 	ret :=sf.xe.ReadStr(str.String())
 	return sf.vm.ToValue(ret)
 }
-func (sf *JS) tmh_exit(_ goja.FunctionCall) goja.Value {
+func (sf *JS) tmh_waitDone(call goja.FunctionCall) goja.Value {
+	arg:=call.Argument(0)
+	str:=""
+	if arg!=goja.Undefined(){
+	    str=arg.String()
+	}
+    sf.xe.WaitRelayExit(str)
+    return arg;
+}
+func (sf *JS) tmh_exit(call goja.FunctionCall) goja.Value {
 	sf.xe.Exit()
 	return sf.vm.ToValue(nil)
 }

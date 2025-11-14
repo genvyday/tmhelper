@@ -271,7 +271,7 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 		n, err := sf.ptmx.Read(sf.buf[sf.start:])
 		sf.err=err
 		if err != nil {
-		    sf.errorf("read error: %v", err)
+		    sf.errorf("match: read error: %v", err)
 		    return -1,""
 		}
 		fmt.Print(string(sf.buf[sf.start : sf.start+n])) // 显示pty输出
@@ -341,6 +341,14 @@ func (sf *TMHelper) Expect(wstr string) {
 	} else {
 	    sf.streamFind(sf.term, sf.ptmx,wstr,false)
 	}
+}
+func (sf *TMHelper) WaitRelayExit(prompt string){
+    defer sf.mtx.Unlock()
+    if !sf.mtx.TryLock(){
+        fmt.Print(prompt)
+        sf.mtx.Lock()
+    }
+    sf.ilen=0
 }
 func (sf *TMHelper) ValHex() string{
     return hex.EncodeToString(sf.vbf[0 : sf.vlen])
