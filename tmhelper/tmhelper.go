@@ -331,7 +331,7 @@ func formal(x string) string{
     }
     return ret
 }
-func (sf *TMHelper) ReadStr(wstr string) string {
+func (sf *TMHelper) ReadPty(wstr string) string {
     sf.vlen=0
 	if sf.term == nil {
 		sf.streamFind(os.Stdout, sf.ptmx,wstr,true)

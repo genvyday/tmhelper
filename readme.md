@@ -37,21 +37,21 @@ tmhelper -f ssh.js
 tmhelper < ssh.js
 
 # 3.在参数里写js代码
-tmhelper -c 'tmh.Exec(["ssh", "xr@127.0.0.1"]);tmh.Matchs([["yes/no", "yes\n", "C"],["password", "123456\n"]]);tmh.Matchs([["$", "cd /data/git/\n"]]);tmh.Term();'
+tmhelper -c 'tp=tmh.Exec(["ssh", "xr@127.0.0.1"]);tp.Matchs([["yes/no", "yes\n", "C"],["password", "123456\n"]]);tp.Matchs([["$", "cd /data/git/\n"]]);tp.Term();'
 
 # 4.shell中编写js代码，然后导入到tmhelper命令的标准输入
 tmhelper <<EOF
 tmh.CptKey(tmh.Pwd("crypto key"),"encrypted_123_for_check");
-tmh.Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
+tp=tmh.Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回
-tmh.Matchs([
+tp.Matchs([
     ["yes/no", "yes\n", "C"],       // "C"(continue)标志表示命中后不退出，继续匹配
     ["password", tmh.Dec("encrypted_base64_password")+"\n"],
 ]);
-tmh.Matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
+tp.Matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
 
-tmh.Term(); // 停留在交互式终端，若要结束则调用 tmh.Exit()
+tp.Term(); // 停留在交互式终端，若要结束则调用 tmh.Exit()
 EOF
 
 ```
@@ -59,16 +59,16 @@ EOF
 ```js
 // 自动登录ssh，并停留在交互式shell
 
-tmh.Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
+tp=tmh.Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回
-tmh.Matchs([
+tp.Matchs([
     ["yes/no", "yes\n", "C"],       // "C"(continue)标志表示命中后不退出，继续匹配
     ["password", "123456\n"],
 ]);
-tmh.Matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
+tp.Matchs([["$", "cd /data/git/\n"]]); // 登录后打开指定目录
 
-tmh.Term(); // 停留在交互式终端，若要结束则调用 tmh.Exit()
+tp.Term(); // 停留在交互式终端，若要结束则调用 tmh.Exit()
 ```
 
 ### 3.加密文本

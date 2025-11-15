@@ -16,15 +16,16 @@ const hosts=[
 	{name:"prd.usa",host:tmh.Dec("bnP6wmuI9bi3l9dnn1Y6cg"),cred:creds.get("prdbst"),lgn:bstlgn,scred:prdscred,port:"22"},
 ];
 const hcount=hosts.length;
+const prmt="Please Select[0-"+hcount+"]：";
+var tp=null;
 tmh.SetTimeout(999999999);
 mainloop();
-
 function mainloop()
 {
 	var hidx=hcount;
 	while(hidx!=0)
 	{
-		if(tmh.Goos()=="windows") tmh.WaitDone("\nPress Any Key To Select Host:");
+		if(tp!=null&&tmh.Goos()=="windows") tp.WaitDone("\nPress Any Key To Select Host:");
 		tmh.Println("\n\nHost List：");
 		for(i=0;i<hcount;++i)
 		{
@@ -33,44 +34,44 @@ function mainloop()
 		hidx=hcount;
 		for(j=0;j<10&&(hidx>=hcount||isNaN(hidx));++j)
 		{
-			s=tmh.Input("Please Select[0-"+hcount+"]：");
+			if(tp==null) s=tmh.Input(prmt); else s=tp.Input(prmt);
 			hidx=parseInt(s);
-			if(hidx<hosts.length&&hidx!=0) hosts[hidx].lgn(hosts[hidx]);
+			if(hidx<hosts.length&&hidx!=0) tp=hosts[hidx].lgn(hosts[hidx]);
 		}
 	}
 }
 function bstlgn(host) //login bastion host first
 {
-    sshconnect(host);
-	tmh.Matchs([[") Password:", tmh.Dec(host.cred.pwd)+"\n"]]);
-	while(tmh.Ok())
+    tp=sshconnect(host);
+	tp.Matchs([[") Password:", tmh.Dec(host.cred.pwd)+"\n"]]);
+	while(tp.Ok())
 	{
-		tmh.Expect("taget host:"); //login application host
-		s=tmh.ReadStr("\n");       //read user input from server echo
+		tp.Expect("taget host:"); //login application host
+		s=tp.ReadStr("\n");       //read user input from server echo
 		cred=host.scred(parseInt(s)); //get credential
 		if(cred!=null)
 		{
-			tmh.Matchs([["login:",cred.user+"\n","C"],["password:",tmh.Dec(cred.pwd)+"\n"]]);
+			tp.Matchs([["login:",cred.user+"\n","C"],["password:",tmh.Dec(cred.pwd)+"\n"]]);
 		}
 		else
 		{
 			tmh.Println(s);
 		}
 	}
-	tmh.Exit();
+	return tp.Exit();
 }
 function directlgn(host) //login application host direct
 {
-    sshconnect(host);
+    tp=sshconnect(host);
 	cred=host.cred
-	tmh.Matchs([["login:",cred.user+"\n","C"],["password:",tmh.Dec(cred.pwd)+"\n"]]);
-	tmh.Term();
+	tp.Matchs([["login:",cred.user+"\n","C"],["password:",tmh.Dec(cred.pwd)+"\n"]]);
+	return tp.Term();
 }
 function sshconnect(host)
 {
     port="22";
     if(host.port!=null) port=host.port;
-	tmh.Exec(["ssh",host.cred.user+"@"+host.host,"-p",port]);
+	return tmh.Exec(["ssh",host.cred.user+"@"+host.host,"-p",port]);
 }
 function uatscred(n) //map to credential
 {
