@@ -11,6 +11,7 @@ const creds=new Map([ //credentials
 ]);
 
 const hosts=[
+    {name:"exit   ",host:"for exit"}
 	{name:"dev.001",host:"172.16.0.2",cred:creds.get("devdrt"),lgn:directlgn},
 	{name:"uat.chn",host:"192.168.0.2",cred:creds.get("uatbst"),lgn:bstlgn,scred:uatscred},
 	{name:"prd.usa",host:tmh.Dec("bnP6wmuI9bi3l9dnn1Y6cg"),cred:creds.get("prdbst"),lgn:bstlgn,scred:prdscred,port:"22"},
