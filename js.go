@@ -97,12 +97,17 @@ func (sf *JS) Print(call goja.FunctionCall) goja.Value {
 	fmt.Print(str.String())
 	return str
 }
-func (sf *JS) NewTerm(value goja.FunctionCall) goja.Value {
+func (sf *JS) NewTerm(call goja.FunctionCall) goja.Value {
 	tp:=&TermProc{
 	    vm:sf.vm,
 	    xe:tmhelper.NewTMHelper(),
 	}
-    tp.xe.SetTimeout(sf.timeout)
+    timeout:=sf.timeout
+	arg:=call.Argument(0)
+	if arg!=goja.Undefined(){
+	    timeout=int(arg.ToInteger())
+	}
+    tp.xe.SetTimeout(timeout)
 	return sf.vm.ToValue(tp)
 }
 func formatArgs(value goja.Value) []string {
