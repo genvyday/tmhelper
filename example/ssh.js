@@ -1,6 +1,6 @@
 // 自动登录ssh，并停留在交互式shell
 
-tp=tmh.Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
+tp=tmh.NewTerm().Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回
 tp.Matchs([

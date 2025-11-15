@@ -37,12 +37,12 @@ tmhelper -f ssh.js
 tmhelper < ssh.js
 
 # 3.在参数里写js代码
-tmhelper -c 'tp=tmh.Exec(["ssh", "xr@127.0.0.1"]);tp.Matchs([["yes/no", "yes\n", "C"],["password", "123456\n"]]);tp.Matchs([["$", "cd /data/git/\n"]]);tp.Term();'
+tmhelper -c 'tp=tmh.NewTerm().Exec(["ssh", "xr@127.0.0.1"]);tp.Matchs([["yes/no", "yes\n", "C"],["password", "123456\n"]]);tp.Matchs([["$", "cd /data/git/\n"]]);tp.Term();'
 
 # 4.shell中编写js代码，然后导入到tmhelper命令的标准输入
 tmhelper <<EOF
 tmh.CptKey(tmh.Pwd("crypto key"),"encrypted_123_for_check");
-tp=tmh.Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
+tp=tmh.NewTerm().Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回
 tp.Matchs([
@@ -59,7 +59,7 @@ EOF
 ```js
 // 自动登录ssh，并停留在交互式shell
 
-tp=tmh.Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
+tp=tmh.NewTerm().Exec(["ssh", "xr@127.0.0.1"]); // 运行命令
 
 // 执行多个匹配，默认命中任意一个就返回
 tp.Matchs([

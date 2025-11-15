@@ -18,15 +18,15 @@ const hosts=[
 ];
 const hcount=hosts.length;
 const prmt="Please Select[0-"+hcount+"]：";
-var tp=null;
-tmh.SetTimeout(999999999);
+tmh.SetTimeout(0);
+var tp=tmh.NewTerm();
 mainloop();
 function mainloop()
 {
 	var hidx=hcount;
 	while(hidx!=0)
 	{
-		if(tp!=null&&tmh.Goos()=="windows") tp.WaitDone("\nPress Any Key To Select Host:");
+		if(tmh.Goos()=="windows") tp.WaitDone("\nPress Any Key To Select Host:");
 		tmh.Println("\n\nHost List：");
 		for(i=0;i<hcount;++i)
 		{
@@ -35,7 +35,7 @@ function mainloop()
 		hidx=hcount;
 		for(j=0;j<10&&(hidx>=hcount||isNaN(hidx));++j)
 		{
-			if(tp==null) s=tmh.Input(prmt); else s=tp.Input(prmt);
+			s=tp.Input(prmt);
 			hidx=parseInt(s);
 			if(hidx<hosts.length&&hidx!=0) tp=hosts[hidx].lgn(hosts[hidx]);
 		}
@@ -72,7 +72,7 @@ function sshconnect(host)
 {
     port="22";
     if(host.port!=null) port=host.port;
-	return tmh.Exec(["ssh",host.cred.user+"@"+host.host,"-p",port]);
+	return tp.Exec(["ssh",host.cred.user+"@"+host.host,"-p",port]);
 }
 function uatscred(n) //map to credential
 {

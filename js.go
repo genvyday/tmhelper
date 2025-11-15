@@ -71,23 +71,10 @@ func (sf *JS) Enc(value goja.FunctionCall) goja.Value {
 	ret:=base64.RawURLEncoding.EncodeToString(encData)
 	return sf.vm.ToValue(ret)
 }
-// func(args []string)
-func (sf *JS) Exec(value goja.FunctionCall) goja.Value {
-	args := formatArgs(value.Argument(0))
-	fmt.Println(args)
-	tp:=&TermProc{
-	    vm:sf.vm,
-	    xe:tmhelper.NewTMHelper(),
-	}
-    tp.xe.SetTimeout(sf.timeout)
-	tp.xe.Run(args)
-	return sf.vm.ToValue(tp)
-}
-
 func (sf *JS) SetTimeout(value goja.FunctionCall) goja.Value {
 	sec := value.Argument(0).ToInteger()
 	sf.timeout=int(sec)
-	return sf.vm.ToValue(nil)
+	return sf.vm.ToValue(sf)
 }
 func (sf *JS) Pwd(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
@@ -110,6 +97,14 @@ func (sf *JS) Print(call goja.FunctionCall) goja.Value {
 	fmt.Print(str.String())
 	return str
 }
+func (sf *JS) NewTerm(value goja.FunctionCall) goja.Value {
+	tp:=&TermProc{
+	    vm:sf.vm,
+	    xe:tmhelper.NewTMHelper(),
+	}
+    tp.xe.SetTimeout(sf.timeout)
+	return sf.vm.ToValue(tp)
+}
 func formatArgs(value goja.Value) []string {
 	arrayInterface, ok := value.Export().([]interface{})
 	if !ok {
@@ -129,54 +124,60 @@ func formatArgs(value goja.Value) []string {
 	return args
 }
 
+func (tp *TermProc) Exec(value goja.FunctionCall) goja.Value {
+	args := formatArgs(value.Argument(0))
+	fmt.Println(args)
+	tp.xe.Run(args)
+	return tp.vm.ToValue(tp)
+}
 // func (rule [][]string) map[string]any{"idx": idx, "str": str}
-func (sf *TermProc) Matchs(value goja.FunctionCall) goja.Value {
+func (tp *TermProc) Matchs(value goja.FunctionCall) goja.Value {
 	rule := formatRule(value.Argument(0))
-	idx, str := sf.xe.Matchs(rule)
-	return sf.vm.ToValue(map[string]any{"idx": idx, "str": str})
+	idx, str := tp.xe.Matchs(rule)
+	return tp.vm.ToValue(map[string]any{"idx": idx, "str": str})
 }
 
-func (sf *TermProc) Term(_ goja.FunctionCall) goja.Value {
-	sf.xe.Term()
-	return sf.vm.ToValue(sf)
+func (tp *TermProc) Term(_ goja.FunctionCall) goja.Value {
+	tp.xe.Term()
+	return tp.vm.ToValue(tp)
 }
-func (sf *TermProc) Expect(call goja.FunctionCall) goja.Value {
+func (tp *TermProc) Expect(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
-	sf.xe.Expect(str.String())
+	tp.xe.Expect(str.String())
 	return str
 }
-func (sf *TermProc) ValRaw(call goja.FunctionCall) goja.Value {
-    ret :=sf.xe.ValRaw()
-    return sf.vm.ToValue(ret)
+func (tp *TermProc) ValRaw(call goja.FunctionCall) goja.Value {
+    ret :=tp.xe.ValRaw()
+    return tp.vm.ToValue(ret)
 }
-func (sf *TermProc) ValHex(call goja.FunctionCall) goja.Value {
-    ret :=sf.xe.ValHex()
-    return sf.vm.ToValue(ret)
+func (tp *TermProc) ValHex(call goja.FunctionCall) goja.Value {
+    ret :=tp.xe.ValHex()
+    return tp.vm.ToValue(ret)
 }
-func (sf *TermProc) ReadStr(call goja.FunctionCall) goja.Value {
+func (tp *TermProc) ReadStr(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
-	ret :=sf.xe.ReadPty(str.String())
-	return sf.vm.ToValue(ret)
+	ret :=tp.xe.ReadPty(str.String())
+	return tp.vm.ToValue(ret)
 }
-func (sf *TermProc) WaitDone(call goja.FunctionCall) goja.Value {
+func (tp *TermProc) WaitDone(call goja.FunctionCall) goja.Value {
 	arg:=call.Argument(0)
 	str:=""
 	if arg!=goja.Undefined(){
 	    str=arg.String()
 	}
-    sf.xe.WaitRelayExit(str)
+    tp.xe.WaitRelayExit(str)
     return arg;
 }
-func (sf *TermProc) Exit(call goja.FunctionCall) goja.Value {
-	sf.xe.Exit()
-	return sf.vm.ToValue(sf)
+func (tp *TermProc) Exit(call goja.FunctionCall) goja.Value {
+	tp.xe.Exit()
+	return tp.vm.ToValue(tp)
 }
-func (sf *TermProc) Ok(value goja.FunctionCall) goja.Value {
-	return sf.vm.ToValue(sf.xe.Ok())
+func (tp *TermProc) Ok(value goja.FunctionCall) goja.Value {
+	return tp.vm.ToValue(tp.xe.Ok())
 }
-func (sf *TermProc) Input(call goja.FunctionCall) goja.Value {
+func (tp *TermProc) Input(call goja.FunctionCall) goja.Value {
     prompt:=call.Argument(0).String()
-	return sf.vm.ToValue(sf.xe.ReadInput(prompt))
+	return tp.vm.ToValue(tp.xe.ReadInput(prompt))
 }
 func formatRule(value goja.Value) [][]string {
 	var rule [][]string
