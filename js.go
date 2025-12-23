@@ -1,18 +1,19 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"runtime"
-	"encoding/base64"
 
-	"golang.org/x/term"
-	"github.com/dop251/goja"
 	"tmhelper/tmhelper"
+
+	"github.com/dop251/goja"
+	"golang.org/x/term"
 )
 
 type JS struct {
-	vm *goja.Runtime
+	vm      *goja.Runtime
 	cptkey  []byte
 	timeout int
 }
@@ -22,13 +23,13 @@ type TermProc struct {
 }
 
 func NewJS() *JS {
-	sf:= &JS{
-		vm: goja.New(),
-		cptkey: nil,
-		timeout:10,
+	sf := &JS{
+		vm:      goja.New(),
+		cptkey:  nil,
+		timeout: 10,
 	}
-    sf.vm.Set("tmh", sf)
-    return sf
+	sf.vm.Set("tmh", sf)
+	return sf
 }
 
 func (sf *JS) Run(jsCode string) goja.Value {
@@ -36,55 +37,55 @@ func (sf *JS) Run(jsCode string) goja.Value {
 	if err != nil {
 		panic(err)
 	}
-    return v;
+	return v
 }
 func (sf *JS) CptKey(value goja.FunctionCall) goja.Value {
-    ekey:=value.Argument(0).String()
-    chk:=value.Argument(1).String()
-    enc:=tmhelper.EncText("123",ekey)
-    valid:=enc==chk;
-    if(valid){
-        sf.cptkey=tmhelper.GenKey([]byte(ekey),32)
-    }
+	ekey := value.Argument(0).String()
+	chk := value.Argument(1).String()
+	enc := tmhelper.EncText("123", ekey)
+	valid := enc == chk
+	if valid {
+		sf.cptkey = tmhelper.GenKey([]byte(ekey), 32)
+	}
 	return sf.vm.ToValue(valid)
 }
 
 func (sf *JS) Dec(value goja.FunctionCall) goja.Value {
-    str := value.Argument(0)
-    if sf.cptkey==nil||len(sf.cptkey)==0{
-        return str
-    }
-    encData,_:=base64.RawURLEncoding.DecodeString(str.String())
-	plain:=string(tmhelper.AesDec(encData,sf.cptkey))
+	str := value.Argument(0)
+	if len(sf.cptkey) == 0 {
+		return str
+	}
+	encData, _ := base64.RawURLEncoding.DecodeString(str.String())
+	plain := string(tmhelper.AesDec(encData, sf.cptkey))
 	return sf.vm.ToValue(plain)
 }
 
 func (sf *JS) Goos(value goja.FunctionCall) goja.Value {
-    return sf.vm.ToValue(runtime.GOOS)
+	return sf.vm.ToValue(runtime.GOOS)
 }
 func (sf *JS) Enc(value goja.FunctionCall) goja.Value {
-    str := value.Argument(0)
-    if sf.cptkey==nil||len(sf.cptkey)==0{
-        return str
-    }
-	encData:=tmhelper.AesEnc([]byte(str.String()),sf.cptkey)
-	ret:=base64.RawURLEncoding.EncodeToString(encData)
+	str := value.Argument(0)
+	if len(sf.cptkey) == 0 {
+		return str
+	}
+	encData := tmhelper.AesEnc([]byte(str.String()), sf.cptkey)
+	ret := base64.RawURLEncoding.EncodeToString(encData)
 	return sf.vm.ToValue(ret)
 }
 func (sf *JS) SetTimeout(value goja.FunctionCall) goja.Value {
 	sec := value.Argument(0).ToInteger()
-	sf.timeout=int(sec)
+	sf.timeout = int(sec)
 	return sf.vm.ToValue(sf)
 }
 func (sf *JS) Pwd(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
 	fmt.Print(str.String())
-	bpwd,_ := term.ReadPassword(int(os.Stdin.Fd()))
+	bpwd, _ := term.ReadPassword(int(os.Stdin.Fd()))
 	return sf.vm.ToValue(string(bpwd))
 }
 func (sf *JS) Input(call goja.FunctionCall) goja.Value {
-    prompt:=call.Argument(0).String()
-    fmt.Print(prompt)
+	prompt := call.Argument(0).String()
+	fmt.Print(prompt)
 	return sf.vm.ToValue(tmhelper.ReadStr(os.Stdin))
 }
 func (sf *JS) Println(call goja.FunctionCall) goja.Value {
@@ -98,16 +99,16 @@ func (sf *JS) Print(call goja.FunctionCall) goja.Value {
 	return str
 }
 func (sf *JS) NewTerm(call goja.FunctionCall) goja.Value {
-	tp:=&TermProc{
-	    vm:sf.vm,
-	    xe:tmhelper.NewTMHelper(),
+	tp := &TermProc{
+		vm: sf.vm,
+		xe: tmhelper.NewTMHelper(),
 	}
-    timeout:=sf.timeout
-	arg:=call.Argument(0)
-	if arg!=goja.Undefined(){
-	    timeout=int(arg.ToInteger())
+	timeout := sf.timeout
+	arg := call.Argument(0)
+	if arg != goja.Undefined() {
+		timeout = int(arg.ToInteger())
 	}
-    tp.xe.SetTimeout(timeout)
+	tp.xe.SetTimeout(timeout)
 	return sf.vm.ToValue(tp)
 }
 func formatArgs(value goja.Value) []string {
@@ -135,6 +136,7 @@ func (tp *TermProc) Exec(value goja.FunctionCall) goja.Value {
 	tp.xe.Run(args)
 	return tp.vm.ToValue(tp)
 }
+
 // func (rule [][]string) map[string]any{"idx": idx, "str": str}
 func (tp *TermProc) Matchs(value goja.FunctionCall) goja.Value {
 	rule := formatRule(value.Argument(0))
@@ -152,26 +154,26 @@ func (tp *TermProc) Expect(call goja.FunctionCall) goja.Value {
 	return str
 }
 func (tp *TermProc) ValRaw(call goja.FunctionCall) goja.Value {
-    ret :=tp.xe.ValRaw()
-    return tp.vm.ToValue(ret)
+	ret := tp.xe.ValRaw()
+	return tp.vm.ToValue(ret)
 }
 func (tp *TermProc) ValHex(call goja.FunctionCall) goja.Value {
-    ret :=tp.xe.ValHex()
-    return tp.vm.ToValue(ret)
+	ret := tp.xe.ValHex()
+	return tp.vm.ToValue(ret)
 }
 func (tp *TermProc) ReadStr(call goja.FunctionCall) goja.Value {
 	str := call.Argument(0)
-	ret :=tp.xe.ReadPty(str.String())
+	ret := tp.xe.ReadPty(str.String())
 	return tp.vm.ToValue(ret)
 }
 func (tp *TermProc) WaitDone(call goja.FunctionCall) goja.Value {
-	arg:=call.Argument(0)
-	str:=""
-	if arg!=goja.Undefined(){
-	    str=arg.String()
+	arg := call.Argument(0)
+	str := ""
+	if arg != goja.Undefined() {
+		str = arg.String()
 	}
-    tp.xe.WaitRelayExit(str)
-    return arg;
+	tp.xe.WaitRelayExit(str)
+	return arg
 }
 func (tp *TermProc) Exit(call goja.FunctionCall) goja.Value {
 	tp.xe.Exit()
@@ -181,7 +183,7 @@ func (tp *TermProc) Ok(value goja.FunctionCall) goja.Value {
 	return tp.vm.ToValue(tp.xe.Ok())
 }
 func (tp *TermProc) Input(call goja.FunctionCall) goja.Value {
-    prompt:=call.Argument(0).String()
+	prompt := call.Argument(0).String()
 	return tp.vm.ToValue(tp.xe.ReadInput(prompt))
 }
 func formatRule(value goja.Value) [][]string {
