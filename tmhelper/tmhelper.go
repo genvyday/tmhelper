@@ -1,18 +1,18 @@
 package tmhelper
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
-	"bufio"
 	"os"
 	"regexp"
-	"strings"
-	"time"
-	"errors"
-	"bytes"
-	"sync"
 	"runtime"
-    "encoding/hex"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/iyzyi/aiopty/pty"
 	"github.com/iyzyi/aiopty/term"
@@ -23,9 +23,9 @@ const (
 )
 
 type TMHelper struct {
-	ptmx    *pty.Pty
-	term    *term.Term
-	timeout int // 总超时时间，秒
+	ptmx     *pty.Pty
+	term     *term.Term
+	timeout  int // 总超时时间，秒
 	buf      []byte
 	start    int
 	matchLen int
@@ -43,6 +43,7 @@ type action struct {
 	send       string
 	isContinue bool // 匹配成功后是否继续匹配
 	isReg      bool // 是否为正则
+	isRsv      bool // 是否保留
 }
 
 func NewTMHelper() *TMHelper {
@@ -54,7 +55,7 @@ func NewTMHelper() *TMHelper {
 		start:    0,
 		matchLen: matchLen,
 		sbf:      make([]byte, 1024),
-		vbf:      make([]byte,1024),
+		vbf:      make([]byte, 1024),
 		vlen:     0,
 		err:      nil,
 		timer:    nil,
@@ -66,10 +67,10 @@ func (sf *TMHelper) SetTimeout(second int) {
 }
 
 func (sf *TMHelper) Run(args []string) {
-    sf.err = nil
-    sf.start=0
-	sf.vlen=  0
-    sf.ilen=0
+	sf.err = nil
+	sf.start = 0
+	sf.vlen = 0
+	sf.ilen = 0
 	opt := &pty.Options{
 		Path: args[0],
 		Args: args,
@@ -96,101 +97,101 @@ func (sf *TMHelper) Run(args []string) {
 	// 响应手动输入
 	go sf.relayInput()
 	// timeout
-	if sf.timeout >0{
-    	sf.timer=time.AfterFunc(time.Second*time.Duration(sf.timeout),sf.timerFunc)
+	if sf.timeout > 0 {
+		sf.timer = time.AfterFunc(time.Second*time.Duration(sf.timeout), sf.timerFunc)
 	}
 }
-func (sf *TMHelper) timerFunc(){
-    if sf.ptmx!=nil{
+func (sf *TMHelper) timerFunc() {
+	if sf.ptmx != nil {
 		sf.close()
 		sf.errorf("timeout exit")
 		os.Exit(1)
-    }
+	}
 }
-func (sf *TMHelper) ReadInput(prompt string) (ret string){
-    sf.ilen=0
-    fmt.Print(prompt)
-    sf.mtx.Lock()
-    defer sf.mtx.Unlock()
-    c:=0
-    if sf.ilen>0{
-        ret=formal(string(sf.sbf[:sf.ilen]))
-        c=int(sf.sbf[sf.ilen-1])
-        sf.ilen=0
-    }
-    if c!='\n'&&c!='\r'{
-        ret=ret+ReadStr(os.Stdin)
-    }
-    return ret
+func (sf *TMHelper) ReadInput(prompt string) (ret string) {
+	sf.ilen = 0
+	fmt.Print(prompt)
+	sf.mtx.Lock()
+	defer sf.mtx.Unlock()
+	c := 0
+	if sf.ilen > 0 {
+		ret = formal(string(sf.sbf[:sf.ilen]))
+		c = int(sf.sbf[sf.ilen-1])
+		sf.ilen = 0
+	}
+	if c != '\n' && c != '\r' {
+		ret = ret + ReadStr(os.Stdin)
+	}
+	return ret
 }
-func (sf *TMHelper) relayExit(cutLen int,dlen int){
-    if dlen>cutLen{
-        copy(sf.sbf, sf.sbf[cutLen:dlen])
-        sf.ilen=dlen-cutLen
-        if runtime.GOOS=="windows"{
-            fmt.Print(string(sf.sbf[:sf.ilen]))
-        }
-    }
+func (sf *TMHelper) relayExit(cutLen int, dlen int) {
+	if dlen > cutLen {
+		copy(sf.sbf, sf.sbf[cutLen:dlen])
+		sf.ilen = dlen - cutLen
+		if runtime.GOOS == "windows" {
+			fmt.Print(string(sf.sbf[:sf.ilen]))
+		}
+	}
 }
-func (sf *TMHelper) relayInput(){
-    var er error
-    var r io.Reader
-    r=sf.term;
-    if r==nil{
-        r=os.Stdin
-    }
-    w:=sf.ptmx
-    nr:=0
-    sf.mtx.Lock()
-    defer sf.mtx.Unlock()
-    for{
-        nr, er = r.Read(sf.sbf)
-        if(nr>0){
-            wrtd:=0
-            for wrtd<nr {
-                nw, ew := w.Write(sf.sbf[wrtd:nr])
-                if ew != nil||nw<0{
-                    sf.relayExit(wrtd,nr)
-                    return
-                }
-                wrtd =wrtd+nw
-            }
-        }
-        if er!=nil{
-            break;
-        }
-    }
+func (sf *TMHelper) relayInput() {
+	var er error
+	var r io.Reader
+	r = sf.term
+	if r == nil {
+		r = os.Stdin
+	}
+	w := sf.ptmx
+	nr := 0
+	sf.mtx.Lock()
+	defer sf.mtx.Unlock()
+	for {
+		nr, er = r.Read(sf.sbf)
+		if nr > 0 {
+			wrtd := 0
+			for wrtd < nr {
+				nw, ew := w.Write(sf.sbf[wrtd:nr])
+				if ew != nil || nw < 0 {
+					sf.relayExit(wrtd, nr)
+					return
+				}
+				wrtd = wrtd + nw
+			}
+		}
+		if er != nil {
+			break
+		}
+	}
 }
-func (sf *TMHelper) saveVal(cutLen int,mlen int){
-    vx:=cutLen-mlen;
-    vl:=len(sf.vbf)-sf.vlen;
-    if vx>vl{
-        vx=vl;
-    }
-    copy(sf.vbf[sf.vlen:],sf.buf[:vx])
-    sf.vlen+=vx
+func (sf *TMHelper) saveVal(cutLen int, mlen int) {
+	vx := cutLen - mlen
+	vl := len(sf.vbf) - sf.vlen
+	if vx > vl {
+		vx = vl
+	}
+	copy(sf.vbf[sf.vlen:], sf.buf[:vx])
+	sf.vlen += vx
 }
-func (sf *TMHelper) cutBuf(dataLen int,cutLen int,mlen int,readVal bool){
-    if cutLen<0{
-        return
-    }
-    if readVal{
-        sf.saveVal(cutLen,mlen)
-    }
-    copy(sf.buf, sf.buf[cutLen:dataLen])
-    sf.start = dataLen-cutLen
+func (sf *TMHelper) cutBuf(dataLen int, cutLen int, mlen int, readVal bool) {
+	if cutLen < 0 {
+		return
+	}
+	if readVal {
+		sf.saveVal(cutLen, mlen)
+	}
+	copy(sf.buf, sf.buf[cutLen:dataLen])
+	sf.start = dataLen - cutLen
 }
-func ReadStr(in io.Reader)string{
-    inputReader := bufio.NewReader(in)
-    str, _ := inputReader.ReadString('\n')
-    return strings.Trim(str," \t\n\r")
+func ReadStr(in io.Reader) string {
+	inputReader := bufio.NewReader(in)
+	str, _ := inputReader.ReadString('\n')
+	return strings.Trim(str, " \t\n\r")
 }
-func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,str string,readVal bool) (written int64, err error) {
-    matchb:=[]byte(str)
-    mlen:=len(matchb)
+func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader, str string, readVal bool) (written int64, err error) {
+	matchb := []byte(str)
+	mlen := len(matchb)
 	for {
 		nr, er := src.Read(sf.buf[sf.start:])
-		sf.err=er
+		sf.err = er
 		if nr > 0 {
 			nw, ew := dst.Write(sf.buf[sf.start : sf.start+nr])
 			if nw < 0 || nr < nw {
@@ -208,13 +209,13 @@ func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,str string,readVal b
 				err = io.ErrShortWrite
 				break
 			}
-            idx := bytes.Index(sf.buf[:sf.start + nr],matchb)
-            if idx>-1 {
-                sf.cutBuf(sf.start + nr,idx+mlen, mlen,readVal)
-                return written, err
-            }else{
-                sf.cutBuf(sf.start + nr,sf.start+nr-mlen+1,0,readVal)
-            }
+			idx := bytes.Index(sf.buf[:sf.start+nr], matchb)
+			if idx > -1 {
+				sf.cutBuf(sf.start+nr, idx+mlen, mlen, readVal)
+				return written, err
+			} else {
+				sf.cutBuf(sf.start+nr, sf.start+nr-mlen+1, 0, readVal)
+			}
 		}
 		if er != nil {
 			if er != io.EOF {
@@ -223,7 +224,7 @@ func (sf *TMHelper) streamFind(dst io.Writer, src io.Reader,str string,readVal b
 			break
 		}
 	}
-    return written, err
+	return written, err
 }
 func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 	listAction := sf.parseRule(rule)
@@ -232,10 +233,10 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 	cutLen := 0
 	for {
 		n, err := sf.ptmx.Read(sf.buf[sf.start:])
-		sf.err=err
+		sf.err = err
 		if err != nil {
-		    sf.errorf("match: read error: %v", err)
-		    return -1,""
+			sf.errorf("match: read error: %v", err)
+			return -1, ""
 		}
 		fmt.Print(string(sf.buf[sf.start : sf.start+n])) // 显示pty输出
 		if n > 0 {
@@ -249,20 +250,25 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 				if len(act.expect) == 0 { // 不匹配直接发送
 					isMatch = true
 					matchStr = ""
-					cutLen = len(text)
+					cutLen = 0
 				} else if act.isReg {
-					matchStr = sf.regMatch(text, act.expect)
-					if matchStr != "" {
+					loc := sf.regMatch(text, act.expect)
+					if loc != nil {
 						isMatch = true
+						matchStr = text[loc[0]:loc[1]]
+						cutLen = loc[1]
 					}
 				} else {
 					idx := strings.LastIndex(text, act.expect)
 					if idx > -1 {
 						isMatch = true
 						cutLen = idx + len(act.expect)
+						matchStr = act.expect
 					}
 				}
-
+				if isMatch && act.isRsv {
+					cutLen -= len(matchStr)
+				}
 				//抛弃已匹配字符串前面的字符串，避免重复匹配
 				if cutLen > 0 {
 					copy(sf.buf, sf.buf[cutLen:])
@@ -274,10 +280,10 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 					if len(act.send) > 0 {
 						//fmt.Println(act.send, "end")
 						_, err := sf.ptmx.Write([]byte(act.send))
-						sf.err=err
+						sf.err = err
 						if err != nil {
 							sf.errorf("send error: %v", err)
-							return -1,""
+							return -1, ""
 						}
 					}
 					if act.isContinue {
@@ -300,51 +306,51 @@ func (sf *TMHelper) Matchs(rule [][]string) (int, string) {
 }
 func (sf *TMHelper) Expect(wstr string) {
 	if sf.term == nil {
-		sf.streamFind(os.Stdout, sf.ptmx,wstr,false)
+		sf.streamFind(os.Stdout, sf.ptmx, wstr, false)
 	} else {
-	    sf.streamFind(sf.term, sf.ptmx,wstr,false)
+		sf.streamFind(sf.term, sf.ptmx, wstr, false)
 	}
 }
-func (sf *TMHelper) WaitRelayExit(prompt string){
-    defer sf.mtx.Unlock()
-    if !sf.mtx.TryLock(){
-        fmt.Print(prompt)
-        sf.mtx.Lock()
-    }
-    sf.ilen=0
+func (sf *TMHelper) WaitRelayExit(prompt string) {
+	defer sf.mtx.Unlock()
+	if !sf.mtx.TryLock() {
+		fmt.Print(prompt)
+		sf.mtx.Lock()
+	}
+	sf.ilen = 0
 }
-func (sf *TMHelper) ValHex() string{
-    return hex.EncodeToString(sf.vbf[0 : sf.vlen])
+func (sf *TMHelper) ValHex() string {
+	return hex.EncodeToString(sf.vbf[0:sf.vlen])
 }
-func (sf *TMHelper) ValRaw() string{
-    return string(sf.vbf[0 : sf.vlen])
+func (sf *TMHelper) ValRaw() string {
+	return string(sf.vbf[0:sf.vlen])
 }
-func formal(x string) string{
-    s,ret,sp:="","",""
-    reader := strings.NewReader(x)
-    for reader.Len()>0{
-        ns,_:= fmt.Fscanf(reader,"%s",&s);
-        if ns!=0 {
-            ret=ret+sp+s
-            sp=" "
-        }
-    }
-    return ret
+func formal(x string) string {
+	s, ret, sp := "", "", ""
+	reader := strings.NewReader(x)
+	for reader.Len() > 0 {
+		ns, _ := fmt.Fscanf(reader, "%s", &s)
+		if ns != 0 {
+			ret = ret + sp + s
+			sp = " "
+		}
+	}
+	return ret
 }
 func (sf *TMHelper) ReadPty(wstr string) string {
-    sf.vlen=0
+	sf.vlen = 0
 	if sf.term == nil {
-		sf.streamFind(os.Stdout, sf.ptmx,wstr,true)
+		sf.streamFind(os.Stdout, sf.ptmx, wstr, true)
 	} else {
-	    sf.streamFind(sf.term, sf.ptmx,wstr,true)
+		sf.streamFind(sf.term, sf.ptmx, wstr, true)
 	}
-    return formal(string(sf.vbf[0 : sf.vlen]))
+	return formal(string(sf.vbf[0:sf.vlen]))
 }
-func (sf *TMHelper) Ok() bool{
-    return sf.ptmx!=nil&&sf.err==nil;
+func (sf *TMHelper) Ok() bool {
+	return sf.ptmx != nil && sf.err == nil
 }
-func (sf *TMHelper) Error() error{
-    return sf.err
+func (sf *TMHelper) Error() error {
+	return sf.err
 }
 func (sf *TMHelper) Term() {
 	defer sf.close()
@@ -356,31 +362,31 @@ func (sf *TMHelper) Term() {
 }
 
 func (sf *TMHelper) Exit() {
-    sf.close()
+	sf.close()
 }
 
 func (sf *TMHelper) close() {
 	if sf.term != nil {
 		sf.term.Close()
-		sf.term=nil
+		sf.term = nil
 	}
 	if sf.ptmx != nil {
 		sf.ptmx.Close()
-		sf.ptmx=nil
+		sf.ptmx = nil
 	}
-    if sf.timer != nil{
-        sf.timer.Stop()
-        sf.timer=nil
-    }
+	if sf.timer != nil {
+		sf.timer.Stop()
+		sf.timer = nil
+	}
 }
 
-func (sf *TMHelper) regMatch(text string, reg string) string {
+func (sf *TMHelper) regMatch(text string, reg string) (loc []int) {
 	regex, err := regexp.Compile(reg)
 	if err != nil {
 		sf.errorf("reg (%s) error: %v", reg, err)
 	}
 
-	return regex.FindString(text)
+	return regex.FindStringIndex(text)
 }
 
 func (sf *TMHelper) parseRule(rule [][]string) []*action {
@@ -396,6 +402,7 @@ func (sf *TMHelper) parseRule(rule [][]string) []*action {
 			send:       v[1],
 			isContinue: false,
 			isReg:      false,
+			isRsv:      false,
 		}
 		for i := range v[2:] {
 			switch v[2+i] {
@@ -404,6 +411,8 @@ func (sf *TMHelper) parseRule(rule [][]string) []*action {
 				numC++
 			case "E":
 				act.isReg = true
+			case "R":
+				act.isRsv = true
 			default:
 				sf.errorf("rule error: flag = '%s', want 'C' or 'E'", v[2+i])
 			}
